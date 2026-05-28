@@ -47,19 +47,19 @@ def classify(prob):
 def simulate_events(n=200):
     np.random.seed(42)
     data = {
-        "relative_speed":            np.random.uniform(0.1,  15.0, n),
-        "time_to_tca":               np.random.uniform(0.1,  72.0, n),
-        "F10":                       np.random.uniform(70,  250.0, n),
-        "SSN":                       np.random.uniform(0,   200.0, n),
-        "AP":                        np.random.uniform(0,   100.0, n),
-        "relative_position_r":       np.random.uniform(-500, 500,  n),
-        "relative_position_t":       np.random.uniform(-500, 500,  n),
-        "relative_position_n":       np.random.uniform(-500, 500,  n),
-        "t_position_covariance_det": np.random.uniform(0.001,10.0, n),
-        "c_position_covariance_det": np.random.uniform(0.001,10.0, n),
-        "kinetic_proxy":             np.random.uniform(0.1, 100.0, n),
-        "solar_drag_interaction":    np.random.uniform(0.0,   1.0, n),
-        "urgency_score":             np.random.uniform(0.0,   1.0, n),
+        "relative_speed":            np.random.uniform(n),
+        "time_to_tca":               np.random.uniform(n),
+        "F10":                       np.random.uniform(n),
+        "SSN":                       np.random.uniform(n),
+        "AP":                        np.random.uniform(n),
+        "relative_position_r":       np.random.uniform(n),
+        "relative_position_t":       np.random.uniform(n),
+        "relative_position_n":       np.random.uniform(n),
+        "t_position_covariance":     np.random.uniform(n),
+        "c_position_covariance":     np.random.uniform(n),
+        "kinetic_proxy":             np.random.uniform(n),
+        "solar_drag_interaction":    np.random.uniform(n),
+        
     }
     df = pd.DataFrame(data)
     probs            = model.predict_proba(df[FEATURES])[:, 1]
@@ -217,7 +217,6 @@ if page == "🔍 Event Details":
         m4.metric("Urgency Score",   f"{row['urgency_score']:.3f}")
 
         m5, m6 = st.columns(2)
-        m5.metric("Kinetic Proxy",   f"{row['kinetic_proxy']:.2f}")
         m6.metric("TCA (hours)",     f"{row['time_to_tca']:.1f}")
 
         st.divider()
@@ -295,10 +294,10 @@ if page == "🧪 Manual Prediction":
 
     with col3:
         st.subheader("📐 Uncertainty & Risk")
-        t_position_covariance = st.number_input("Target Covariance Det")
-        c_position_covariance = st.number_input("Chaser Covariance Det")
-        kinetic_proxy             = st.number_input("Kinetic Proxy")
-        urgency_score             = st.number_input("Urgency Score")
+        target_position_covariance = st.input("Target Covariance Det")
+        chaser_position_covariance = st.input("Chaser Covariance Det")
+        
+        
 
     st.divider()
     if st.button("🔮 Predict Risk Now", type="primary", use_container_width=True):
@@ -311,11 +310,9 @@ if page == "🧪 Manual Prediction":
             "relative_position_r":       relative_position_r,
             "relative_position_t":       relative_position_t,
             "relative_position_n":       relative_position_n,
-            "t_position_covariance": t_position_covariance_det,
-            "c_position_covariance": c_position_covariance_det,
-            "kinetic_proxy":             kinetic_proxy,
-            "solar_drag_interaction":    solar_drag_interaction,
-            "urgency_score":             urgency_score,
+            "target_position_covariance": t_position_covariance_det,
+            "chaser_position_covariance": c_position_covariance_det,
+            
         }])
         prob = float(model.predict_proba(input_df[FEATURES])[:, 1][0])
         level, action, color = classify(prob)
