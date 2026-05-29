@@ -39,60 +39,44 @@ model = load_model()
 
 st.sidebar.header("Conjunction Parameters")
 
-relative_speed = st.sidebar.slider(
+relative_speed = st.sidebar.number_input(
     "Relative Speed",
-    0,
-    20000,
-    14000
+    value=14000.0
 )
 
-time_to_tca = st.sidebar.slider(
+time_to_tca = st.sidebar.number_input(
     "Time To TCA",
-    0.1,
-    10.0,
-    2.0
+    value=2.0
 )
 
-F10 = st.sidebar.slider(
+F10 = st.sidebar.number_input(
     "F10 Solar Flux",
-    0,
-    300,
-    80
+    value=80.0
 )
 
-SSN = st.sidebar.slider(
+SSN = st.sidebar.number_input(
     "Sunspot Number",
-    0,
-    300,
-    20
+    value=20.0
 )
 
-AP = st.sidebar.slider(
+AP = st.sidebar.number_input(
     "Geomagnetic AP",
-    0,
-    100,
-    15
+    value=15.0
 )
 
-relative_position_r = st.sidebar.slider(
+relative_position_r = st.sidebar.number_input(
     "Relative Position R",
-    -500,
-    500,
-    -20
+    value=-20.0
 )
 
-relative_position_t = st.sidebar.slider(
+relative_position_t = st.sidebar.number_input(
     "Relative Position T",
-    -500,
-    500,
-    15
+    value=15.0
 )
 
-relative_position_n = st.sidebar.slider(
+relative_position_n = st.sidebar.number_input(
     "Relative Position N",
-    -500,
-    500,
-    10
+    value=10.0
 )
 
 t_cov = st.sidebar.number_input(
@@ -106,41 +90,6 @@ c_cov = st.sidebar.number_input(
     value=1e12,
     format="%e"
 )
-
-# ============================================================
-# FEATURE ENGINEERING
-# ============================================================
-
-kinetic_proxy = relative_speed ** 2
-
-solar_drag_interaction = F10 * AP
-
-urgency_score = 1 / (time_to_tca + 1e-6)
-
-# ============================================================
-# INPUT DATAFRAME
-# ============================================================
-
-input_data = pd.DataFrame({
-
-    "relative_speed": [relative_speed],
-    "time_to_tca": [time_to_tca],
-    "F10": [F10],
-    "SSN": [SSN],
-    "AP": [AP],
-
-    "relative_position_r": [relative_position_r],
-    "relative_position_t": [relative_position_t],
-    "relative_position_n": [relative_position_n],
-
-    "t_position_covariance_det": [t_cov],
-    "c_position_covariance_det": [c_cov],
-
-    "kinetic_proxy": [kinetic_proxy],
-    "solar_drag_interaction": [solar_drag_interaction],
-    "urgency_score": [urgency_score]
-})
-
 # ============================================================
 # PREDICTION
 # ============================================================
