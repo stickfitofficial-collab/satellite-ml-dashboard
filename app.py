@@ -25,7 +25,12 @@ st.subheader("AI-Based Space Collision Risk Monitoring")
 # LOAD MODEL
 # ============================================================
 
-model = joblib.load("/content/xgb_model.pkl")
+def load_model():
+    model_path = os.path.join(os.path.dirname(__file__), "xgb_model.pkl")
+    return joblib.load(model_path)
+
+model = load_model()
+
 
 # ============================================================
 # SIDEBAR INPUTS
