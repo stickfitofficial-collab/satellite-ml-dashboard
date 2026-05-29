@@ -25,7 +25,7 @@ st.subheader("AI-Based Space Collision Risk Monitoring")
 # LOAD MODEL
 # ============================================================
 
-model = joblib.load("/content/project_debris_model.pkl")
+model = joblib.load("/content/xgb_model.pkl")
 
 # ============================================================
 # SIDEBAR INPUTS
