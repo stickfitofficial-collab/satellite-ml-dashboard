@@ -140,20 +140,20 @@ probability = model.predict_proba(input_data)[0][1]
 # ============================================================
 
 if probability < 0.20:
-risk_level = "LOW"
-color = "green"
+  risk_level = "LOW"
+  color = "green"
 
 elif probability < 0.50:
-risk_level = "MEDIUM"
-color = "orange"
+  risk_level = "MEDIUM"
+  color = "orange"
 
 elif probability < 0.80:
-risk_level = "HIGH"
-color = "red"
+  risk_level = "HIGH"
+  color = "red"
 
 else:
-risk_level = "CRITICAL"
-color = "darkred"
+  risk_level = "CRITICAL"
+  color = "darkred"
 
 # ============================================================
 
@@ -162,16 +162,16 @@ color = "darkred"
 # ============================================================
 
 if probability >= 0.95:
-action = "IMMEDIATE MANUAL REVIEW"
+  action = "IMMEDIATE MANUAL REVIEW"
 
 elif probability >= 0.80:
-action = "HIGH PRIORITY ALERT"
+  action = "HIGH PRIORITY ALERT"
 
 elif probability >= 0.50:
-action = "MONITOR CLOSELY"
+  action = "MONITOR CLOSELY"
 
 else:
-action = "NO ACTION"
+  action = "NO ACTION"
 
 # ============================================================
 
