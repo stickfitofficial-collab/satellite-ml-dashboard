@@ -1,433 +1,224 @@
+
+
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
 import joblib
-import os
-from datetime import datetime, timedelta
+
+# ============================================================
+# PAGE CONFIG
+# ============================================================
 
 st.set_page_config(
-    page_title="Debris Collision Monitor",
-    page_icon="🛰️",
+    page_title="Project Debris",
     layout="wide"
 )
 
-st.markdown("""
-<style>
-.block-container { padding-top: 1rem; padding-bottom: 1rem; }
-div[data-testid="stMetricValue"] { font-size: 28px !important; }
-</style>
-""", unsafe_allow_html=True)
+# ============================================================
+# TITLE
+# ============================================================
 
-# ── Load model ──────────────────────────────────────────────────────────────
-@st.cache_resource
-def load_model():
-    model_path = os.path.join(os.path.dirname(__file__), "xgb_model.pkl")
-    return joblib.load(model_path)
+st.title("🚀 Project Debris")
+st.subheader("AI-Based Space Collision Risk Monitoring")
 
-model = load_model()
+# ============================================================
+# LOAD MODEL
+# ============================================================
 
-# ── Feature names ───────────────────────────────────────────────────────────
-FEATURES = [
-    "relative_speed", "time_to_tca", "F10", "SSN", "AP",
-    "relative_position_r", "relative_position_t", "relative_position_n",
-    "t_position_covariance_det", "c_position_covariance_det",
-    "kinetic_proxy", "solar_drag_interaction", "urgency_score"
-]
+model = joblib.load("/content/project_debris_model.pkl")
 
-def classify(prob):
-    if   prob >= 0.80: return "CRITICAL", "Maneuver immediately",              "#dc3545"
-    elif prob >= 0.50: return "HIGH",     "Monitor closely / prepare maneuver", "#fd7e14"
-    elif prob >= 0.25: return "MEDIUM",   "Continue monitoring",                "#0d6efd"
-    else:              return "LOW",      "Routine tracking",                   "#198754"
+# ============================================================
+# SIDEBAR INPUTS
+# ============================================================
 
-# ── Simulated events ────────────────────────────────────────────────────────
-@st.cache_data(ttl=60)
-def simulate_events(n=200):
-    np.random.seed(42)
-    data = {
-        "relative_speed":            np.random.uniform(n),
-        "time_to_tca":               np.random.uniform(n),
-        "F10":                       np.random.uniform(n),
-        "SSN":                       np.random.uniform(n),
-        "AP":                        np.random.uniform(n),
-        "relative_position_r":       np.random.uniform(n),
-        "relative_position_t":       np.random.uniform(n),
-        "relative_position_n":       np.random.uniform(n),
-        "t_position_covariance":     np.random.uniform(n),
-        "c_position_covariance":     np.random.uniform(n),
-        "kinetic_proxy":             np.random.uniform(n),
-        "solar_drag_interaction":    np.random.uniform(n),
-        
-    }
-    df = pd.DataFrame(data)
-    probs            = model.predict_proba(df[FEATURES])[:, 1]
-    df["Probability"] = np.round(probs, 3)
-    df["Risk Level"]  = df["Probability"].apply(lambda p: classify(p)[0])
-    df["Action"]      = df["Probability"].apply(lambda p: classify(p)[1])
-    df["Event ID"]    = [f"EVT-{i+1:03d}" for i in range(n)]
-    df["TCA Time"]    = [
-        (datetime.now() + timedelta(hours=h)).strftime("%H:%M %d-%b")
-        for h in df["time_to_tca"]
-    ]
-    return df
+st.sidebar.header("Conjunction Parameters")
 
-df = simulate_events()
+relative_speed = st.sidebar.slider(
+    "Relative Speed",
+    0,
+    20000,
+    14000
+)
 
-icons = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🔵", "LOW": "🟢"}
+time_to_tca = st.sidebar.slider(
+    "Time To TCA",
+    0.1,
+    10.0,
+    2.0
+)
 
-# ── Sidebar ─────────────────────────────────────────────────────────────────
-with st.sidebar:
-    st.title("🛰️ Debris Monitor")
-    st.caption("Model: XGBClassifier · 300 trees")
-    st.caption(f"Updated: {datetime.now().strftime('%H:%M:%S')}")
-    st.divider()
+F10 = st.sidebar.slider(
+    "F10 Solar Flux",
+    0,
+    300,
+    80
+)
 
-    st.subheader("🔍 Filters")
-    levels = st.multiselect(
-        "Risk Level",
-        ["CRITICAL", "HIGH", "MEDIUM", "LOW"],
-        default=["CRITICAL", "HIGH", "MEDIUM", "LOW"]
-    )
-    prob_min = st.slider("Min Probability", 0.0, 1.0, 0.0, 0.01)
-    tca_max  = st.slider("Max TCA (hours)", 1, 72, 72)
+SSN = st.sidebar.slider(
+    "Sunspot Number",
+    0,
+    300,
+    20
+)
 
-    st.divider()
-    st.subheader("📂 Pages")
-    page = st.radio(
-        label="",
-        options=[
-            "🔴 Live Alerts",
-            "🔍 Event Details",
-            "🧪 Manual Prediction",
-            "📊 Analytics"
-        ],
-        index=0
-    )
+AP = st.sidebar.slider(
+    "Geomagnetic AP",
+    0,
+    100,
+    15
+)
 
-    st.divider()
-    if st.button("🔄 Refresh Data"):
-        st.cache_data.clear()
-        st.rerun()
+relative_position_r = st.sidebar.slider(
+    "Relative Position R",
+    -500,
+    500,
+    -20
+)
 
-# ── Apply filters ────────────────────────────────────────────────────────────
-filtered = df[
-    df["Risk Level"].isin(levels) &
-    (df["Probability"] >= prob_min) &
-    (df["time_to_tca"] <= tca_max)
-].sort_values("Probability", ascending=False)
+relative_position_t = st.sidebar.slider(
+    "Relative Position T",
+    -500,
+    500,
+    15
+)
 
-# ════════════════════════════════════════════════════════════════════════════
-# PAGE 1 — Live Alerts
-# ════════════════════════════════════════════════════════════════════════════
-if page == "🔴 Live Alerts":
-    st.title("🔴 Live Conjunction Alerts")
-    st.caption(f"Showing {len(filtered)} events · {datetime.now().strftime('%H:%M:%S')}")
-    st.divider()
+relative_position_n = st.sidebar.slider(
+    "Relative Position N",
+    -500,
+    500,
+    10
+)
 
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Total Events",  len(filtered))
-    c2.metric("🔴 Critical",   len(filtered[filtered["Risk Level"] == "CRITICAL"]))
-    c3.metric("🟠 High",       len(filtered[filtered["Risk Level"] == "HIGH"]))
-    c4.metric("🔵 Medium",     len(filtered[filtered["Risk Level"] == "MEDIUM"]))
-    c5.metric("🟢 Low",        len(filtered[filtered["Risk Level"] == "LOW"]))
-    st.divider()
+t_cov = st.sidebar.number_input(
+    "Target Covariance",
+    value=1e7,
+    format="%e"
+)
 
-    critical = filtered[filtered["Risk Level"] == "CRITICAL"]
-    if not critical.empty:
-        st.error(f"⚠️ {len(critical)} CRITICAL conjunction(s) — immediate action required")
-        for _, row in critical.iterrows():
-            with st.expander(
-                f"🔴 {row['Event ID']}  |  P = {row['Probability']:.3f}  |  TCA in {row['time_to_tca']:.1f}h",
-                expanded=True
-            ):
-                col1, col2, col3, col4 = st.columns(4)
-                col1.metric("Probability",   row["Probability"])
-                col2.metric("Rel. Speed",    f"{row['relative_speed']:.2f} m/s")
-                col3.metric("TCA",           row["TCA Time"])
-                col4.metric("Urgency Score", f"{row['urgency_score']:.2f}")
-                st.error(f"Action: {row['Action']}")
+c_cov = st.sidebar.number_input(
+    "Chaser Covariance",
+    value=1e12,
+    format="%e"
+)
 
-    high = filtered[filtered["Risk Level"] == "HIGH"]
-    if not high.empty:
-        st.warning(f"⚡ {len(high)} HIGH risk conjunction(s)")
-        for _, row in high.head(5).iterrows():
-            with st.expander(
-                f"🟠 {row['Event ID']}  |  P = {row['Probability']:.3f}  |  TCA in {row['time_to_tca']:.1f}h"
-            ):
-                col1, col2, col3, col4 = st.columns(4)
-                col1.metric("Probability",   row["Probability"])
-                col2.metric("Rel. Speed",    f"{row['relative_speed']:.2f} m/s")
-                col3.metric("TCA",           row["TCA Time"])
-                col4.metric("Urgency Score", f"{row['urgency_score']:.2f}")
-                st.warning(f"Action: {row['Action']}")
+# ============================================================
+# FEATURE ENGINEERING
+# ============================================================
 
-    medium = filtered[filtered["Risk Level"] == "MEDIUM"]
-    if not medium.empty:
-        st.info(f"🔵 {len(medium)} MEDIUM risk conjunction(s)")
+kinetic_proxy = relative_speed ** 2
 
-    low = filtered[filtered["Risk Level"] == "LOW"]
-    if not low.empty:
-        st.success(f"🟢 {len(low)} LOW / safe conjunction(s)")
+solar_drag_interaction = F10 * AP
 
-    st.divider()
-    st.subheader("📋 All Events Table")
-    disp = filtered.copy()
-    disp["Risk Level"] = disp["Risk Level"].map(lambda x: f"{icons[x]} {x}")
-    st.dataframe(
-        disp[[
-            "Event ID", "Risk Level", "Probability",
-            "relative_speed", "time_to_tca",
-            "urgency_score", "TCA Time", "Action"
-        ]].rename(columns={
-            "relative_speed": "Rel. Speed (km/s)",
-            "time_to_tca":    "TCA (hrs)",
-            "urgency_score":  "Urgency"
-        }),
-        use_container_width=True,
-        hide_index=True
-    )
+urgency_score = 1 / (time_to_tca + 1e-6)
 
-# ════════════════════════════════════════════════════════════════════════════
-# PAGE 2 — Event Details
-# ════════════════════════════════════════════════════════════════════════════
-if page == "🔍 Event Details":
-    st.title("🔍 Event Details")
-    st.divider()
+# ============================================================
+# INPUT DATAFRAME
+# ============================================================
 
-    sel_id = st.selectbox("Select Event ID", filtered["Event ID"].tolist())
-    row    = filtered[filtered["Event ID"] == sel_id].iloc[0]
-    level, action, _ = classify(row["Probability"])
-    fn = {"CRITICAL": st.error, "HIGH": st.warning,
-          "MEDIUM":   st.info,  "LOW":  st.success}[level]
+input_data = pd.DataFrame({
 
-    col_l, col_r = st.columns(2)
+    "relative_speed": [relative_speed],
+    "time_to_tca": [time_to_tca],
+    "F10": [F10],
+    "SSN": [SSN],
+    "AP": [AP],
 
-    with col_l:
-        st.subheader("Conjunction Summary")
-        fn(f"Risk Level: {icons[level]} {level}")
+    "relative_position_r": [relative_position_r],
+    "relative_position_t": [relative_position_t],
+    "relative_position_n": [relative_position_n],
 
-        m1, m2 = st.columns(2)
-        m1.metric("Collision Probability", f"{row['Probability']:.3f}")
-        m2.metric("TCA Time",              row["TCA Time"])
+    "t_position_covariance_det": [t_cov],
+    "c_position_covariance_det": [c_cov],
 
-        m3, m4 = st.columns(2)
-        m3.metric("Relative Speed",  f"{row['relative_speed']:.2f} m/s")
-        m4.metric("Urgency Score",   f"{row['urgency_score']:.3f}")
+    "kinetic_proxy": [kinetic_proxy],
+    "solar_drag_interaction": [solar_drag_interaction],
+    "urgency_score": [urgency_score]
+})
 
-        m5, m6 = st.columns(2)
-        m6.metric("TCA (hours)",     f"{row['time_to_tca']:.1f}")
+# ============================================================
+# PREDICTION
+# ============================================================
 
-        st.divider()
-        st.subheader("🌞 Space Weather")
-        sw1, sw2, sw3 = st.columns(3)
-        sw1.metric("F10 Solar Flux", f"{row['F10']:.1f}")
-        sw2.metric("SSN Sunspots",   f"{row['SSN']:.0f}")
-        sw3.metric("AP Geomag.",     f"{row['AP']:.1f}")
+probability = model.predict_proba(input_data)[0][1]
 
-        st.divider()
-        st.subheader("📐 Relative Position")
-        p1, p2, p3 = st.columns(3)
-        p1.metric("R (radial)",     f"{row['relative_position_r']:.1f} m")
-        p2.metric("T (tangential)", f"{row['relative_position_t']:.1f} m")
-        p3.metric("N (normal)",     f"{row['relative_position_n']:.1f} m")
+# ============================================================
+# RISK LEVEL
+# ============================================================
 
-        st.divider()
-        fn(f"📋 Recommended Action: {action}")
+if probability < 0.20:
+    risk_level = "LOW"
+    color = "green"
 
-    with col_r:
-        fig = go.Figure(go.Indicator(
-            mode="gauge+number",
-            value=round(float(row["Probability"]), 3),
-            gauge={
-                "axis": {"range": [0, 1]},
-                "bar":  {"color": "crimson"},
-                "steps": [
-                    {"range": [0.00, 0.25], "color": "#d4edda"},
-                    {"range": [0.25, 0.50], "color": "#cce5ff"},
-                    {"range": [0.50, 0.80], "color": "#fff3cd"},
-                    {"range": [0.80, 1.00], "color": "#f8d7da"},
-                ],
-                "threshold": {
-                    "line": {"color": "red", "width": 3},
-                    "thickness": 0.75,
-                    "value": 0.80
-                }
-            },
-            title={"text": "Collision Probability"}
-        ))
-        fig.update_layout(height=300, margin=dict(t=40, b=10, l=10, r=10))
-        st.plotly_chart(fig, use_container_width=True)
+elif probability < 0.50:
+    risk_level = "MEDIUM"
+    color = "orange"
 
-        st.subheader("📊 All Feature Values")
-        feat_df = pd.DataFrame({
-            "Feature": FEATURES,
-            "Value":   [round(float(row[f]), 4) for f in FEATURES]
-        })
-        st.dataframe(feat_df, use_container_width=True, hide_index=True)
+elif probability < 0.80:
+    risk_level = "HIGH"
+    color = "red"
 
-# ════════════════════════════════════════════════════════════════════════════
-# PAGE 3 — Manual Prediction
-# ════════════════════════════════════════════════════════════════════════════
-if page == "🧪 Manual Prediction":
-    st.title("🧪 Manual Conjunction Prediction")
-    st.caption("Enter values manually — XGBoost model predicts in real time")
-    st.divider()
+else:
+    risk_level = "CRITICAL"
+    color = "darkred"
 
-    col1, col2, col3 = st.columns(3)
+# ============================================================
+# ALERT ACTION
+# ============================================================
 
-    with col1:
-        st.subheader("🚀 Orbital")
-        relative_speed            = st.number_input("Relative Speed (m/s)")
-        time_to_tca               = st.number_input("Time to TCA (hours)")
-        relative_position_r       = st.number_input("Position R — Radial (m)")
-        relative_position_t       = st.number_input("Position T — Tangential (m)")
-        relative_position_n       = st.number_input("Position N — Normal (m)")
+if probability >= 0.95:
+    action = "IMMEDIATE MANUAL REVIEW"
 
-    with col2:
-        st.subheader("🌞 Space Weather")
-        F10                       = st.number_input("F10 Solar Flux")
-        SSN                       = st.number_input("Sunspot Number (SSN)")
-        AP                        = st.number_input("AP Geomagnetic Index")
-        solar_drag_interaction    = st.number_input("Solar Drag Interaction")
+elif probability >= 0.80:
+    action = "HIGH PRIORITY ALERT"
 
-    with col3:
-        st.subheader("📐 Uncertainty & Risk")
-        target_position_covariance = st.input("Target Covariance Det")
-        chaser_position_covariance = st.input("Chaser Covariance Det")
-        
-        
+elif probability >= 0.50:
+    action = "MONITOR CLOSELY"
 
-    st.divider()
-    if st.button("🔮 Predict Risk Now", type="primary", use_container_width=True):
-        input_df = pd.DataFrame([{
-            "relative_speed":            relative_speed,
-            "time_to_tca":               time_to_tca,
-            "F10":                       F10,
-            "SSN":                       SSN,
-            "AP":                        AP,
-            "relative_position_r":       relative_position_r,
-            "relative_position_t":       relative_position_t,
-            "relative_position_n":       relative_position_n,
-            "target_position_covariance": t_position_covariance_det,
-            "chaser_position_covariance": c_position_covariance_det,
-            
-        }])
-        prob = float(model.predict_proba(input_df[FEATURES])[:, 1][0])
-        level, action, color = classify(prob)
-        fn = {"CRITICAL": st.error, "HIGH": st.warning,
-              "MEDIUM":   st.info,  "LOW":  st.success}[level]
+else:
+    action = "NO ACTION"
 
-        r1, r2, r3 = st.columns(3)
-        r1.metric("Collision Probability", f"{prob:.4f}")
-        r2.metric("Risk Level",            f"{icons[level]} {level}")
-        r3.metric("Recommended Action",    action)
-        fn(f"{'⚠️' if level in ['CRITICAL','HIGH'] else '✅'} {level} — {action}")
+# ============================================================
+# DISPLAY RESULTS
+# ============================================================
 
-        fig = go.Figure(go.Indicator(
-            mode="gauge+number",
-            value=round(prob, 4),
-            gauge={
-                "axis": {"range": [0, 1]},
-                "bar":  {"color": color},
-                "steps": [
-                    {"range": [0.00, 0.25], "color": "#d4edda"},
-                    {"range": [0.25, 0.50], "color": "#cce5ff"},
-                    {"range": [0.50, 0.80], "color": "#fff3cd"},
-                    {"range": [0.80, 1.00], "color": "#f8d7da"},
-                ],
-            },
-            title={"text": "Predicted Probability"}
-        ))
-        fig.update_layout(height=260, margin=dict(t=40, b=10, l=60, r=60))
-        st.plotly_chart(fig, use_container_width=True)
+st.markdown("---")
 
-# ════════════════════════════════════════════════════════════════════════════
-# PAGE 4 — Analytics
-# ════════════════════════════════════════════════════════════════════════════
-if page == "📊 Analytics":
-    st.title("📊 Analytics")
-    st.caption("Distribution and trend analysis across all 200 simulated events")
-    st.divider()
+st.metric(
+    "Collision Probability",
+    f"{probability:.4f}"
+)
 
-    col_a, col_b = st.columns(2)
-    with col_a:
-        counts = df["Risk Level"].value_counts().reindex(
-            ["CRITICAL", "HIGH", "MEDIUM", "LOW"], fill_value=0
-        ).reset_index()
-        counts.columns = ["Risk Level", "Count"]
-        fig = px.bar(
-            counts, x="Risk Level", y="Count", color="Risk Level",
-            color_discrete_map={
-                "CRITICAL": "#dc3545", "HIGH": "#fd7e14",
-                "MEDIUM":   "#0d6efd", "LOW":  "#198754"
-            },
-            title="Alert Count by Risk Level"
-        )
-        fig.update_layout(showlegend=False, height=320)
-        st.plotly_chart(fig, use_container_width=True)
+st.markdown(
+    f"""
+    ## Risk Level:
+    <span style='color:{color};font-size:32px'>
+    {risk_level}
+    </span>
+    """,
+    unsafe_allow_html=True
+)
 
-    with col_b:
-        fig = px.histogram(
-            df, x="Probability", nbins=40,
-            color_discrete_sequence=["#0d6efd"],
-            title="Probability Distribution"
-        )
-        fig.add_vline(x=0.25, line_dash="dash", line_color="blue",   annotation_text="Medium")
-        fig.add_vline(x=0.50, line_dash="dash", line_color="orange", annotation_text="High")
-        fig.add_vline(x=0.80, line_dash="dash", line_color="red",    annotation_text="Critical")
-        fig.update_layout(height=320)
-        st.plotly_chart(fig, use_container_width=True)
+st.markdown(
+    f"""
+    ## Recommended Action:
+    **{action}**
+    """
+)
 
-    col_c, col_d = st.columns(2)
-    with col_c:
-        fig = px.scatter(
-            df, x="relative_speed", y="Probability", color="Risk Level",
-            color_discrete_map={
-                "CRITICAL": "#dc3545", "HIGH": "#fd7e14",
-                "MEDIUM":   "#0d6efd", "LOW":  "#198754"
-            },
-            opacity=0.6, title="Relative Speed vs Probability"
-        )
-        fig.update_layout(height=320)
-        st.plotly_chart(fig, use_container_width=True)
+# ============================================================
+# EVENT DETAILS
+# ============================================================
 
-    with col_d:
-        fig = px.scatter(
-            df, x="time_to_tca", y="Probability", color="Risk Level",
-            color_discrete_map={
-                "CRITICAL": "#dc3545", "HIGH": "#fd7e14",
-                "MEDIUM":   "#0d6efd", "LOW":  "#198754"
-            },
-            opacity=0.6, title="TCA (hours) vs Probability"
-        )
-        fig.update_layout(height=320)
-        st.plotly_chart(fig, use_container_width=True)
+st.markdown("---")
 
-    col_e, col_f = st.columns(2)
-    with col_e:
-        fig = px.box(
-            df, x="Risk Level", y="relative_speed", color="Risk Level",
-            color_discrete_map={
-                "CRITICAL": "#dc3545", "HIGH": "#fd7e14",
-                "MEDIUM":   "#0d6efd", "LOW":  "#198754"
-            },
-            category_orders={"Risk Level": ["CRITICAL","HIGH","MEDIUM","LOW"]},
-            title="Speed Distribution by Risk Level"
-        )
-        fig.update_layout(showlegend=False, height=320)
-        st.plotly_chart(fig, use_container_width=True)
+st.subheader("Event Details")
 
-    with col_f:
-        fig = px.box(
-            df, x="Risk Level", y="urgency_score", color="Risk Level",
-            color_discrete_map={
-                "CRITICAL": "#dc3545", "HIGH": "#fd7e14",
-                "MEDIUM":   "#0d6efd", "LOW":  "#198754"
-            },
-            category_orders={"Risk Level": ["CRITICAL","HIGH","MEDIUM","LOW"]},
-            title="Urgency Score by Risk Level"
-        )
-        fig.update_layout(showlegend=False, height=320)
-        st.plotly_chart(fig, use_container_width=True)
+st.dataframe(input_data)
+
+# ============================================================
+# SYSTEM STATUS
+# ============================================================
+
+st.markdown("---")
+
+st.success("System Operational")
